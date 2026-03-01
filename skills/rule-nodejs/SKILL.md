@@ -17,7 +17,7 @@ git clone https://github.com/hve4638/npm-boilerplate.git <project-name>
 ### React / SPA 프론트엔드 프로젝트
 
 ```
-git clone https://github.com/hve4638/frontend-template.git <project-name>
+git clone https://github.com/hve4638/react-template.git <project-name>
 ```
 
 ## 프로젝트 초기화 절차
