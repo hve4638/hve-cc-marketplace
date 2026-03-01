@@ -1,0 +1,16 @@
+{
+  "name": "hve-toolkit",
+  "owner": {
+    "name": "hve4638"
+  },
+  "metadata": {
+    "description": "Personal skill collection"
+  },
+  "plugins": [
+    {
+      "name": "hve-toolkit",
+      "source": ".",
+      "description": "Personal skill collection"
+    }
+  ]
+}
