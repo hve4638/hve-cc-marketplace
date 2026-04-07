@@ -1,6 +1,6 @@
-# cc-plugin
+# hve-cc-marketplace
 
-Claude Code용 개인 스킬 모음 플러그인.
+Claude Code용 개인 플러그인 마켓플레이스
 
 ## 설치
 
@@ -11,7 +11,7 @@ Claude Code용 개인 스킬 모음 플러그인.
 # 2. 플러그인 설치
 /plugin install common@hve
 /plugin install research@hve
-/plugin install rule@hve
+/plugin install aris@hve
 ```
 
 ## 갱신
