@@ -17,5 +17,5 @@ Claude Code용 개인 플러그인 마켓플레이스
 ## 갱신
 
 ```bash
-/plugin marketplace update hve-toolkit
+/plugin marketplace update hve
 ```
