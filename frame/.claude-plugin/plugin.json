@@ -1,0 +1,14 @@
+{
+  "name": "frame",
+  "version": "0.1.0",
+  "description": "Lightweight runtime framework — hook-based rule injection, rule-file auto-loading, context guard",
+  "author": {
+    "name": "Hve"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin"
+  ],
+  "skills": "./skills/"
+}
