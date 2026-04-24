@@ -34,6 +34,7 @@ Claude Code 용 개인 플러그인 마켓플레이스.
 
 | 플러그인 | 후속 명령 |
 |---|---|
+| common | `/hve:hve-setup` — Codex CLI 설치 + Codex MCP 등록 (user 스코프) |
 | frame | `/hve:frame-setup` — `@ast-grep/napi@0.41.1` 글로벌 설치 |
 | hud | `/hve:hud setup` — statusline wrapper + settings.json 등록 |
 
