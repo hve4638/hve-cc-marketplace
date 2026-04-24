@@ -1,0 +1,27 @@
+{
+  "name": "frame-plugin",
+  "version": "0.1.0",
+  "description": "Build workspace for frame@hve MCP server (LSP + AST Grep tools)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node build-mcp-server.mjs",
+    "dev": "node build-mcp-server.mjs --watch"
+  },
+  "dependencies": {
+    "@ast-grep/napi": "0.41.1",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "ajv": "^8.17.1",
+    "jsonc-parser": "^3.3.1",
+    "vscode-languageserver-protocol": "^3.17.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.7",
+    "esbuild": "^0.27.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
