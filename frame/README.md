@@ -14,6 +14,15 @@
 
 한글본은 `agents/.ko/` (숨김 디렉토리, Claude Code 가 자동 로드하지 않음 — 참고용).
 
+## 스킬 (`skills/`)
+
+| 스킬 | 용도 |
+|---|---|
+| `frame-setup` | `@ast-grep/napi` 네이티브 모듈 전역 설치 (설치 후 1회 실행) |
+| `interview` | Socratic 질의응답으로 모호한 아이디어를 수학적 ambiguity 게이팅까지 구체화, spec 파일 크리스탈라이즈 |
+
+`interview` 는 `explore` 에이전트 (본 플러그인 제공) 를 사용하여 brownfield/greenfield 판정·코드베이스 탐색 수행.
+
 ## 훅
 
 ### PreToolUse (`scripts/pre-tool-enforcer.mjs`)
