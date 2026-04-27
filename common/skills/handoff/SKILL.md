@@ -3,6 +3,7 @@ name: handoff
 description: "Invoke when the user wants to wrap up the current session and hand off context to the next Claude session. Trigger examples: 'handoff', 'wrap up session', 'end session', 'pass session along', 'hand over to next session'. Splits the current session's work by cohesion and writes task-unit documents under .agent-memory/handoff/. Do NOT invoke for plain summary requests or for saving permanent project knowledge (MEMORY.md territory)."
 ---
 
+<handoff_instruction>
 # handoff
 
 Save the current session's work context as task-unit documents so the next Claude session can read them and continue.
@@ -21,24 +22,27 @@ Save the current session's work context as task-unit documents so the next Claud
 
 ---
 
-## Interaction protocol (iterative)
+## Interaction protocol
 
-A single invocation does not save immediately. Walk through the stages below **while coordinating with the user**. Expect repeated instructions during the flow ("exclude this", "expand that") and adjust on the fly.
+A single invocation does not save immediately. **Only stages 1–2 are coordinated with the user**; once the grouping is confirmed, **stages 3–5 run automatically**.
+During stages 1–2, expect repeated instructions ("exclude this", "expand that") and adjust on the fly.
 
-### 1. Enumerate everything
+### 1. Enumerate everything (user collaboration)
 List **every** task context performed or discussed in the current session. The goal is to miss nothing.
 
-### 2. Propose groupings
+### 2. Propose groupings (user collaboration)
 Cluster by cohesion and present the proposal. Merge, split, drop, or add under the user's direction.
 
-### 3. Propose the title
-Suggest one slug that captures the session's dominant theme. Use `mixed` when it is truly heterogeneous. Iterate until the user confirms.
+**Once the user confirms the grouping, stages 3–5 execute automatically without further confirmation.**
 
-### 4. Draft the documents
-Present each task document draft in sequence. Adjust section inclusion with the user.
+### 3. Auto-decide the title
+Auto-select one slug that captures the session's dominant theme. Use `mixed` when it is truly heterogeneous. No user-approval step.
 
-### 5. Commit to disk
-Write only what the user approves to `.agent-memory/handoff/<timestamp>_<title>/`.
+### 4. Auto-write the documents
+Auto-write the body of each task document. Empty sections from the recommended list are auto-omitted.
+
+### 5. Auto-save
+Write immediately to `.agent-memory/handoff/<timestamp>_<title>/`. No separate final-approval step.
 
 ---
 
@@ -89,3 +93,6 @@ Handoff curates **only what the current session already knows**. Prevents leakin
 - **MEMORY.md** — permanent project knowledge (automatic)
 
 Handoff is session-scoped. If a piece of content belongs to permanent project knowledge, promote it to memory separately.
+</handoff_instruction>
+
+$ARGUMENTS

@@ -3,9 +3,12 @@ name: pickup
 description: "이전 handoff 세션의 맥락을 이어받아 로드. .agent-memory/handoff/ 의 후보 폴더가 여러 개면 최신순으로 제시해 사용자에게 선택 요청. 1개면 즉시 로드. 로드 성공 시 해당 폴더를 _archive/로 이동해 재등장 방지. handoff 스킬의 복원 짝, 명시적 호출 전용."
 ---
 
+<pickup_instruction>
 # pickup
 
-이전 handoff 세션의 맥락을 읽어 현재 세션에서 이어받는다. `handoff` 스킬의 복원 짝.
+이전 handoff 세션의 맥락을 읽어 현재 세션에서 이어받는다.
+
+이어받은 후 간단한 내용을 요약해서 설명하고 작업을 진행하지는 않는다.
 
 ---
 
@@ -47,11 +50,7 @@ description: "이전 handoff 세션의 맥락을 이어받아 로드. .agent-mem
 
 ## 재로드 정책
 
-아카이브된 handoff는 원칙적으로 후보에서 제외한다. 다시 꺼내볼 필요가 있을 땐:
-- 사용자가 경로를 직접 지정하거나
-- `_archive/`에서 원 위치로 수동 이동 후 `/pickup` 재호출
-
-pickup 자체는 아카이브를 자동 탐색하지 않는다.
+아카이브된 handoff는 원칙적으로 후보에서 제외한다. (사용자가 직접 언급하는 경우 제외)
 
 ---
 
@@ -59,4 +58,7 @@ pickup 자체는 아카이브를 자동 탐색하지 않는다.
 
 - **handoff** — 세션 맥락을 저장하는 짝
 - **pickup** — 저장된 맥락을 불러오는 짝
-- 두 스킬 외의 세션 연속성 메커니즘(예: MEMORY.md, notepad)과는 간섭하지 않는다
+- 두 스킬 외의 세션 연속성 메커니즘과는 간섭하지 않는다
+</pickup_instruction>
+
+$ARGUMENTS

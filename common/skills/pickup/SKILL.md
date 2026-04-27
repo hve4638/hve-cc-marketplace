@@ -3,9 +3,12 @@ name: pickup
 description: "Load context from a previous handoff folder into the current session. If multiple handoff folders exist, show them newest-first and ask the user to choose; if exactly one, load it immediately. After a successful load, move the folder into _archive/ so it does not re-surface. Pair skill to handoff; explicit invocation only."
 ---
 
+<pickup_instruction>
 # pickup
 
-Read context from a previous handoff and resume it in the current session. The restoration counterpart of the `handoff` skill.
+Read context from a previous handoff and resume it in the current session.
+
+After picking up, briefly summarize the loaded content and do not proceed with the work itself.
 
 ---
 
@@ -47,11 +50,7 @@ After confirming a successful load, move the folder into `.agent-memory/handoff/
 
 ## Re-load policy
 
-Archived handoffs are excluded from candidate scanning by default. To surface one again:
-- The user specifies the path directly, or
-- The user manually moves it out of `_archive/` and invokes `/pickup` again.
-
-Pickup itself does not auto-scan the archive.
+Archived handoffs are excluded from candidate scanning by default. (Except when the user mentions one directly.)
 
 ---
 
@@ -59,4 +58,7 @@ Pickup itself does not auto-scan the archive.
 
 - **handoff** — the saving counterpart.
 - **pickup** — the restoring counterpart.
-- Does not interfere with other session-continuity mechanisms (e.g., MEMORY.md, notepad).
+- Does not interfere with other session-continuity mechanisms.
+</pickup_instruction>
+
+$ARGUMENTS
