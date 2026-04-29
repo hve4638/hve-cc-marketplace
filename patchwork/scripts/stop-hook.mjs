@@ -47,8 +47,16 @@ function getCapsuleDiff(capsuleRoot) {
   // WHY: full diff 는 모델이 방금 자기가 만든 변경이라 본문 중복. 파일별
   //      +/- 통계만 노출해 캡슐 내 변동 스코프만 알린다.
   const stat = runGit(capsuleRoot, ['diff', '--stat', '--', '.']);
-  if (stat == null || stat.length === 0) return null;
-  return stat.replace(/\n+$/, '');
+  // WHY: git diff 는 untracked 신규 파일을 못 잡으므로 ls-files --others
+  //      로 보완. 캡슐 안에 새로 생긴 파일도 변동 스코프의 일부.
+  const others = runGit(capsuleRoot, ['ls-files', '--others', '--exclude-standard', '--', '.']);
+
+  const blocks = [];
+  if (stat != null && stat.length > 0) blocks.push(stat.replace(/\n+$/, ''));
+  if (others != null && others.trim().length > 0) {
+    blocks.push(others.trim().split('\n').map((p) => `[NEW] ${p}`).join('\n'));
+  }
+  return blocks.length === 0 ? null : blocks.join('\n');
 }
 
 function buildAlert(stale) {
