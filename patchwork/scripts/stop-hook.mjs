@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { statSync } from 'fs';
+import { dirname } from 'path';
+import { execFileSync } from 'child_process';
 import {
   loadCacheForStop,
   saveCache,
@@ -24,15 +26,47 @@ function readStdin() {
   });
 }
 
+function runGit(cwd, args) {
+  try {
+    return execFileSync('git', args, {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 1000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return null;
+  }
+}
+
+function getCapsuleDiff(capsuleRoot) {
+  // WHY: 캡슐 디렉토리가 git work tree 안일 때만 diff 노출. 외부면 skip.
+  const inside = runGit(capsuleRoot, ['rev-parse', '--is-inside-work-tree']);
+  if (!inside || inside.trim() !== 'true') return null;
+
+  // WHY: full diff 는 모델이 방금 자기가 만든 변경이라 본문 중복. 파일별
+  //      +/- 통계만 노출해 캡슐 내 변동 스코프만 알린다.
+  const stat = runGit(capsuleRoot, ['diff', '--stat', '--', '.']);
+  if (stat == null || stat.length === 0) return null;
+  return stat.replace(/\n+$/, '');
+}
+
 function buildAlert(stale) {
   const lines = [
-    '[PATCHWORK ALERT] 다음 캡슐의 CONTEXT.md 가 갱신되지 않았다:',
+    '[PATCHWORK ALERT] CONTEXT.md was not updated for the following capsule(s):',
     '',
     ...stale.map((p) => `- ${p}`),
     '',
-    '코드 변경에 캡슐 경계·진입점·도메인 용어 변동이 있으면 갱신.',
-    '없다면 무시.',
+    'If your code change affects the capsule boundary, entry point, or domain terms, update CONTEXT.md. Otherwise ignore.',
   ];
+
+  for (const ctxPath of stale) {
+    const capsuleRoot = dirname(ctxPath);
+    const diff = getCapsuleDiff(capsuleRoot);
+    if (diff == null) continue;
+    lines.push('', `[DIFF IN CAPSULE] ${capsuleRoot}`, diff);
+  }
+
   return lines.join('\n');
 }
 
