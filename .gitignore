@@ -1,7 +1,7 @@
 # agent state and sessions
 **/.agent-memory/
-**/.claude/
-**/.omc/
+**/.claude/*
+**/.omc/*
 
 # OS files
 .DS_Store
@@ -16,9 +16,12 @@ Thumbs.db
 # etc
 report/
 _ref/
-
+_unused/
 report.md
 .ko
 
 # logs
 hook-stop.log
+
+# temporary files
+testsrc/**/*
