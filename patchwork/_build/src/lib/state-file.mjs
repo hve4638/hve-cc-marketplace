@@ -60,6 +60,34 @@ export function loadCache({ projectRoot, sessionId, agentId }) {
   };
 }
 
+export function loadCacheForStop({ projectRoot, sessionId }) {
+  // WHY: Stop 훅은 메인 컨텍스트에서만 발화하지만 서브에이전트가 만진
+  //      캡슐도 함께 검사해야 미갱신 누락이 없다. 같은 session_id 의 own
+  //      파일 (`${sessionId}-*.json`) 을 모두 union 한다. stopHookFired
+  //      플래그는 메인 파일 값만 — 잔소리 1회 차단은 메인 책임이다.
+  const dir = getCacheDir(projectRoot);
+  const base = readJsonOrEmpty(baseFile(projectRoot, sessionId));
+  const merged = {
+    hashes: { ...base.hashes },
+    tracking: { ...base.tracking },
+    stopHookFired: base.stopHookFired ?? false,
+  };
+  let entries;
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return merged;
+  }
+  const prefix = `${sessionId}-`;
+  for (const name of entries) {
+    if (!name.startsWith(prefix) || !name.endsWith('.json')) continue;
+    const own = readJsonOrEmpty(join(dir, name));
+    Object.assign(merged.hashes, own.hashes);
+    Object.assign(merged.tracking, own.tracking);
+  }
+  return merged;
+}
+
 export function saveCache(updates, { projectRoot, sessionId, agentId }) {
   // WHY: 서브에이전트는 own 파일만 atomic write. base 를 건드리면 메인과
   //      서브의 race window 가 생기고 격리 모델이 깨진다.

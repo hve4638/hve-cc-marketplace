@@ -76,7 +76,16 @@ async function main() {
   const additionalContext = formatForHook(entries);
   if (!additionalContext) return emit({ continue: true });
 
-  emit({ continue: true, additionalContext });
+  // WHY: Claude Code 는 additionalContext 를 top-level 이 아니라
+  //      hookSpecificOutput 안에 wrap 한 형태로만 LLM prompt 에 주입한다.
+  //      top-level 키는 스키마 외라 drop 됨 (hook 출력 docs 의 PreToolUse 형식).
+  emit({
+    continue: true,
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      additionalContext,
+    },
+  });
 }
 
 main().catch(() => emit({ continue: true }));

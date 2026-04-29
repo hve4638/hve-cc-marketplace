@@ -90,11 +90,15 @@ async function main() {
     return emit({ continue: true });
   }
 
+  // WHY: stopHookFired 를 false 로 리셋해 "잔소리 무시하고 코드를 더 만진"
+  //      경우 다음 Stop 훅이 재발화 가능하게 한다. 같은 작업 사이클이 아니라
+  //      새 작업 사이클임을 표시.
   saveCache(
     {
       tracking: {
         [nearest]: { lastInternalWrite: Date.now(), contextMtimeAtWrite: mtime },
       },
+      stopHookFired: false,
     },
     ctx,
   );
