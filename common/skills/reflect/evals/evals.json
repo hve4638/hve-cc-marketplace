@@ -1,0 +1,40 @@
+{
+  "skill_name": "reflect",
+  "evals": [
+    {
+      "id": 1,
+      "name": "empty-retrospection",
+      "prompt": "Imagine the following session has just concluded:\n\nUSER: Hi, can you list the files in /tmp?\nASSISTANT: [runs `ls /tmp` and lists files cleanly]\nUSER: thanks\n\nNow run /reflect on this session. Use the skill at common/skills/reflect/SKILL.md.",
+      "expected_output": "No retrospection items found (no user correction, no factual error). No child skill is created. One-line report only. .claude/skills/reflect-* directory remains untouched. Catalog index unchanged.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "single-user-correction",
+      "prompt": "Imagine the following session has just concluded:\n\nUSER: Add the --force flag to git push to update the remote.\nASSISTANT: I'll run `git push --force` now.\nUSER: Wait, no — we should never use --force on a shared branch. Use --force-with-lease for safety; --force can clobber teammates' commits.\nASSISTANT: Understood, switching to `--force-with-lease`.\n\nNow run /reflect on this session. Use the skill at common/skills/reflect/SKILL.md.",
+      "expected_output": "Exactly one child skill at .claude/skills/reflect-<slug>/SKILL.md. Slug names the narrow situation (e.g., reflect-git-push-force-lease). Description follows the seven principles: imperative opener, intent (writing/proposing `git push --force`), WHY (avoid clobbering teammates' commits), no rules baked in, ≤1024 chars, no angle brackets. Body holds the actual rule (prefer --force-with-lease over --force on shared branches). 'Not a violation' optionally lists e.g. solo-owned branches. Catalog index gains one row: slug + scope-key (e.g., `git push --force`) + today's date.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "mixed-correction-and-factual-errors",
+      "prompt": "Imagine the following session has just concluded:\n\nUSER: write a Python function using `dict.has_key('foo')`.\nASSISTANT: [writes code calling d.has_key('foo')]\n[Code execution fails: AttributeError: 'dict' object has no attribute 'has_key']\nASSISTANT: I'll fix that — using `'foo' in d` instead.\n\nUSER: also use np.float for the array dtype.\nASSISTANT: [tries np.float, hits: AttributeError: module 'numpy' has no attribute 'float']\nASSISTANT: Switching to `np.float64`.\n\nUSER: and could you indent with tabs? Actually no, please always use 4 spaces — that's our project rule.\nASSISTANT: Got it, using 4-space indentation.\n\nNow run /reflect on this session. Use the skill at common/skills/reflect/SKILL.md.",
+      "expected_output": "Three child skills (no merging — three distinct Correct forms with different exact alternatives, so behavioral equivalence fails for any pairing). Plausible slugs: reflect-python-dict-has-key, reflect-numpy-float-deprecated, reflect-project-indent-spaces. Each description is imperative (Use this skill when ...), states intent + WHY, no rules baked in. Each body carries the exact rule. The two factual errors live under category 2; the indentation correction lives under category 1. Catalog index gains three rows. No external tool calls were made (only session context was used).",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "negative-summary-request",
+      "prompt": "Consider this single user message:\n\nUSER: 오늘 한 일 요약해줘.\n\nDecide whether the reflect skill (common/skills/reflect/SKILL.md) should be invoked for this request. Report your decision and the reason in one paragraph. Do not actually run reflect.",
+      "expected_output": "Decision: do NOT invoke reflect. Reason: the request is a plain task summary, which the skill explicitly excludes ('Do not invoke for plain task summaries or permanent-knowledge storage requests' / handoff or MEMORY.md territory). Even though the slash command word is absent, this is the kind of request that the skill identifies as out-of-scope. No child skill should be created and the catalog should not change.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "merge-decision-behavioral-equivalence",
+      "prompt": "Assume the following child skill is already registered in the catalog:\n\n.claude/skills/reflect-git-rebase-no-edit-flag/SKILL.md\n  Rule: `--no-edit` is not a valid flag for `git rebase`. Verify the flag belongs to `git rebase` before using it.\n\nNow imagine the session below has just concluded:\n\nUSER: bypass the pre-commit hook on the rebase with --no-verify.\nASSISTANT: [runs `git rebase --no-verify main`]\n[git: error: unknown switch `no-verify`]\nASSISTANT: My mistake — `--no-verify` is not a valid flag for `git rebase` either. Let me find another bypass.\n\nNow run /reflect on this session. Use the skill at common/skills/reflect/SKILL.md. If Step 3 asks the user to confirm, assume the user replies 'merge'.",
+      "expected_output": "Step 3 behavioral-equivalence check: both items' Correct form is 'verify the flag belongs to `git rebase` before using it'. They collapse to one line, so this is a merge candidate. Step 3 asks the user; user replies 'merge' (per prompt). Action: append a new rule line to the existing reflect-git-rebase-no-edit-flag/SKILL.md Rule section noting `--no-verify` is also invalid; generalize the description so its trigger covers writing/proposing any non-validated `git rebase` flag (no longer specific to `--no-edit`). The catalog row's Last updated is bumped to today; no new row is added.",
+      "files": []
+    }
+  ]
+}
