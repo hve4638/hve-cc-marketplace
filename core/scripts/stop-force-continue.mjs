@@ -7,6 +7,10 @@
  * State: <projectRoot>/.agent-memory/unexpected-stop/<session_id>.json
  *   { "stops": ["<ISO>", ...] }
  *
+ * Debug: every Stop invocation that passes the guards saves the transcript
+ *   tail to <projectRoot>/.agent-memory/stop/transcript_<epochMs>_<pid>.jsonl
+ *   (rotation: oldest deleted when count exceeds STOP_DEBUG_MAX).
+ *
  * Decision matrix (only when payload guards pass and an unexpected stop is
  * detected from the transcript tail):
  *   total >= HARD_LIMIT             → pass + additionalContext + stderr; clear state
@@ -22,7 +26,7 @@
 
 import { execSync } from 'node:child_process';
 import {
-  existsSync, mkdirSync, readFileSync, renameSync, statSync,
+  existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync,
   unlinkSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -33,6 +37,10 @@ const STATE_SUBDIR = '.agent-memory/unexpected-stop';
 const SOFT_LIMIT = 5;
 const SOFT_WINDOW_MS = 5 * 60 * 1000;
 const HARD_LIMIT = 10;
+
+const STOP_DEBUG_SUBDIR = '.agent-memory/stop';
+const STOP_DEBUG_MAX = 50;
+const STOP_DEBUG_FILE_PATTERN = /^transcript_(\d+)(?:_\d+)?\.jsonl$/;
 
 const NOISE_TYPES = new Set([
   'attachment',
@@ -57,12 +65,17 @@ function ok() {
   process.stdout.write(JSON.stringify({ continue: true, suppressOutput: true }));
 }
 
-function getProjectRoot() {
-  return process.env.CLAUDE_PROJECT_DIR || process.cwd();
+// WHY: hook payload.cwd 는 훅 발화 시점 cwd 라 사용자 cd 나 서브에이전트
+//      호출 위치에 휩쓸려 캐시가 흩어진다. CLAUDE_PROJECT_DIR 는 세션
+//      시작 시점에 박힌 절대경로라 안정적이므로 우선시한다.
+function getProjectRoot(hookInput) {
+  return process.env.CLAUDE_PROJECT_DIR
+    ?? hookInput?.cwd
+    ?? process.cwd();
 }
 
-function statePathFor(sessionId) {
-  return join(getProjectRoot(), STATE_SUBDIR, `${sessionId}.json`);
+function statePathFor(projectRoot, sessionId) {
+  return join(projectRoot, STATE_SUBDIR, `${sessionId}.json`);
 }
 
 function readState(path) {
@@ -100,8 +113,8 @@ function tailLines(path, n) {
   }
 }
 
-function lastSubstantiveEntry(path, n) {
-  const lines = tailLines(path, n).split('\n');
+function findLastSubstantiveEntry(tailString) {
+  const lines = tailString.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line) continue;
@@ -111,6 +124,35 @@ function lastSubstantiveEntry(path, n) {
     if (entry.type === 'user' || entry.type === 'assistant') return entry;
   }
   return null;
+}
+
+function saveDebugTail(projectRoot, tailContent) {
+  try {
+    const dir = join(projectRoot, STOP_DEBUG_SUBDIR);
+    mkdirSync(dir, { recursive: true });
+    const name = `transcript_${Date.now()}_${process.pid}.jsonl`;
+    const tmp = join(dir, `${name}.tmp`);
+    writeFileSync(tmp, tailContent);
+    renameSync(tmp, join(dir, name));
+    rotateDebugDir(dir);
+  } catch { /* best-effort: 디버그 저장은 훅을 막지 않는다 */ }
+}
+
+function rotateDebugDir(dir) {
+  try {
+    const matched = [];
+    for (const name of readdirSync(dir)) {
+      const m = STOP_DEBUG_FILE_PATTERN.exec(name);
+      // WHY: 화이트리스트 — 사용자가 둔 다른 파일 보호
+      if (!m) continue;
+      matched.push({ name, ts: parseInt(m[1], 10) });
+    }
+    if (matched.length <= STOP_DEBUG_MAX) return;
+    matched.sort((a, b) => a.ts - b.ts);
+    for (let i = 0; i < matched.length - STOP_DEBUG_MAX; i++) {
+      try { unlinkSync(join(dir, matched[i].name)); } catch { /* race ok */ }
+    }
+  } catch { /* best-effort */ }
 }
 
 async function main() {
@@ -126,12 +168,16 @@ async function main() {
   const transcriptPath = data?.transcript_path;
   if (!transcriptPath || !existsSync(transcriptPath)) return ok();
 
+  const projectRoot = getProjectRoot(data);
   const tailN = parseInt(process.env.FRAME_FORCE_CONTINUE_TAIL_LINES ?? '', 10) || TAIL_LINES_DEFAULT;
-  const entry = lastSubstantiveEntry(transcriptPath, tailN);
+  const tailContent = tailLines(transcriptPath, tailN);
+  saveDebugTail(projectRoot, tailContent);
+
+  const entry = findLastSubstantiveEntry(tailContent);
   const isAbnormal =
     entry?.type === 'assistant' && entry.message?.stop_reason === 'tool_use';
 
-  const statePath = statePathFor(data.session_id);
+  const statePath = statePathFor(projectRoot, data.session_id);
 
   if (!isAbnormal) {
     deleteState(statePath);
