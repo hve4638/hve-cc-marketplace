@@ -10,10 +10,14 @@
  */
 
 import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 const PKG = '@ast-grep/napi';
 const VERSION = '0.41.1';
 const SPEC = `${PKG}@${VERSION}`;
+const TEAMS_ENV_KEY = 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS';
 
 function log(msg) {
   console.log(`[core] ${msg}`);
@@ -69,6 +73,41 @@ function install() {
   }
 }
 
+function settingsPath() {
+  const dir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+  return join(dir, 'settings.json');
+}
+
+function enableAgentTeams() {
+  const path = settingsPath();
+
+  if (!existsSync(path)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify({ env: { [TEAMS_ENV_KEY]: '1' } }, null, 2) + '\n');
+    log(`agent teams: enabled (created ${path})`);
+    return;
+  }
+
+  let data;
+  try {
+    data = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (err) {
+    console.error(`[core] WARN: Could not parse ${path}: ${err.message}`);
+    console.error('[core]   Skipping agent teams enablement. Add manually:');
+    console.error(`[core]     { "env": { "${TEAMS_ENV_KEY}": "1" } }`);
+    return;
+  }
+
+  if (data && data.env && data.env[TEAMS_ENV_KEY] === '1') {
+    log('agent teams: already enabled');
+    return;
+  }
+
+  data.env = { ...(data.env || {}), [TEAMS_ENV_KEY]: '1' };
+  writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+  log(`agent teams: enabled (${path})`);
+}
+
 checkNode();
 ensureNpm();
 
@@ -77,6 +116,8 @@ if (isInstalled()) {
 } else {
   install();
 }
+
+enableAgentTeams();
 
 console.log('');
 log('Setup complete. Restart Claude Code to pick up the MCP server.');
