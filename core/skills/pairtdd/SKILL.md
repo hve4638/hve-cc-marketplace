@@ -1,7 +1,6 @@
 ---
 name: pairtdd
-description: Use this skill when the user invokes `/pairtdd <task>` to start a GAN-style adversarial pair-TDD session under `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, where `tdd-adversary` writes failing tests and `tdd-implementer` makes them pass inside an isolated git worktree. Consult it to avoid contaminating the main working copy with experimental rounds, to refuse the run if the env var is unset, and to keep the spec under gitignored `.agent-memory/tdd-spec/` so it stays out of git history.
-disable-model-invocation: true
+description: Use this skill when the user asks to run an adversarial pair-TDD session.
 argument-hint: "[수행할 task 설명]"
 ---
 
