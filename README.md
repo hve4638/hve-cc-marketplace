@@ -1,4 +1,4 @@
-# hve-cc-marketplace
+# cc-toolkit
 
 Claude Code 용 개인 플러그인 마켓플레이스.
 
@@ -18,7 +18,7 @@ Claude Code 용 개인 플러그인 마켓플레이스.
 
 ```bash
 # 1. 마켓플레이스 추가
-/plugin marketplace add https://github.com/hve4638/hve-cc-marketplace
+/plugin marketplace add https://github.com/hve4638/cc-toolkit
 
 # 2. 원하는 플러그인 설치
 /plugin install core@hve
