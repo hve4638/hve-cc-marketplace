@@ -1,6 +1,6 @@
 ---
 name: inlay
-description: "Mandatory development methodology guardrail to load when writing, editing, refactoring, debugging, reviewing code or designing modules/architecture. Blocks agent failure modes — rewriting functions that already exist, rolling back code without reason, mismatching domain terms — through context preservation (inlays, intent comments, DDD domain glossary). Reference immediately on any new code, debugging, refactor, review, or module design request."
+description: "Context preservation methodology applied when writing, editing, refactoring, debugging, reviewing code or designing modules/architecture. Pins per-directory responsibilities, entry points, and domain terms through INLAY.md, and preserves non-obvious decisions through WHY comments."
 ---
 
 <inlay>
@@ -26,6 +26,19 @@ Before writing code:
 
 Test: *"If this interpretation is wrong, will the user have to ask for the work again?" → ✓ → confirm before starting.*
 
+## Task entry procedure
+
+When to apply: introducing a new module, a change that crosses inlay boundaries, or when the scope of the work is unclear. For self-evident in-file edits, the auto-injected context is enough.
+
+When starting code exploration after receiving a request:
+
+1. Scan tier-1 inlays — from the root, run `search` to see the tier-1 inlay list and their `purpose`. Narrow down which tier-1 inlay this work touches (or whether it touches none).
+2. Enter the selected inlay's entry — read INLAY.md and entry first. Descend into inner files starting from what entry points to, only as needed.
+3. Recurse into child inlays — when entry or inner code touches a child inlay's responsibility, repeat steps 1–2 in that child.
+4. Decide scope and external impact — judge which inlays the change spans, whether it breaks the entry contract, and whether it propagates to other inlays before starting.
+
+Test: *"Do you know the entry contracts and internal responsibilities of every inlay this work touches before starting?"* → ✓ → proceed.
+
 ## INLAY.md rules
 
 Place an `INLAY.md` at the codebase root. Any directory containing an `INLAY.md` is an **Inlay**. When exploring an inlay, read the `INLAY.md` and its entry point first; descend into inner files only when needed — do not re-read the entire inlay on every task. Inlays can nest (child inlay inside a parent).
@@ -50,6 +63,8 @@ when:
 - `when` — high-level scenarios in which the agent invokes this inlay. 1–3 bullets recommended. Needing more is a signal that the inlay's responsibility has grown too wide; consider splitting.
 - Body `## Domain Terms` — **only when present**. A domain term is a name whose meaning is fixed inside the inlay. Exclude generic words and identifiers whose meaning is closed by language convention. A child inlay's domain terms live in the child INLAY.md only.
 
+Split test: *"Can internal changes or failures affect code outside the inlay without going through entry?"* → ✓ → the boundary is drawn wrong.
+
 Splitting: when a split is reported, propose it to the user. Split an inlay only when the user approves or explicitly asks. **Do not mix changes and splits in one go.**
 
 Synchronization: when an inlay's entry points or domain terms change, update INLAY.md alongside the code. Breaking changes go through INLAY.md and the code in the same PR.
@@ -66,6 +81,8 @@ Synchronization: when an inlay's entry points or domain terms change, update INL
 Non-obvious preconditions, postconditions, invariants, external dependencies, and concurrency models also belong in the docstring when they apply.
 
 The entry point is a source file inside the inlay directory. When the outward contract fits in one file, write a single path (e.g. `entry: index.ts`). When it spans several files, list them as an array (e.g. `entry: [routes.ts, schema.ts]`). Do not maintain a separate markdown interface document.
+
+Multi-file entry test: *"Is each entry file a different facet of the same outward contract?"* → ✗ → signal that the inlay's responsibility has grown too wide; consider splitting.
 
 ## Domain term collision rules
 
@@ -89,7 +106,7 @@ Attach `// WHY:` whenever any of the following applies:
 
 1. **A simpler-looking approach was deliberately rejected.**
 2. **A choice that runs counter to intuition.**
-3. **A workaround for a past bug or issue.**
+3. **A workaround for a past bug or issue, or for a bug or constraint in an external system.**
 4. **A choice driven by performance, security, or compatibility constraints.**
 
 Test: *"Without this comment, would an agent seeing this code for the first time think 'I could simplify this' and roll it back?"*
@@ -123,15 +140,15 @@ Because automatic injection is independent of explicit tool calls, the agent nor
 
 Use the following tools instead of reading INLAY.md directly:
 
-- **MCP `search`** — At a given location, find the INLAY.md there and in immediate children one level deep (deeper nesting is ignored). Returns a JSON array of `name`, `purpose`, `path`. Tool name: `mcp__inlay__search`. Args: `{ path?: string }` (defaults to cwd).
-- **MCP `read_context`** — Read the ancestor INLAY.md chain from a given path up to the filesystem root. Output is a string of `<inlay-context path="...">...</inlay-context>` blocks, top-down. INLAY.md already served in this session with the same hash appears with `(already read)` as the body (lifetime: MCP server process). Tool name: `mcp__inlay__read_context`. Args: `{ path?: string }` (defaults to cwd).
-- **Static script `doctor`** — Checks for broken frontmatter (4 fields: `name`/`purpose`/`entry`/`when`), empty `when` list, and body over 300 lines. On violation, prints a `<inlay-instruction>` block with the prescription. Run: `node $CLAUDE_PLUGIN_ROOT/scripts/context-doctor.mjs [<root>]`. Defaults to cwd. exit 0.
+- **MCP `search`** — At a given location, find the INLAY.md there and in immediate children one level deep (deeper nesting is ignored). Returns a JSON array of `name`, `purpose`, `path`. Tool name: `mcp__inlay__search`. Args: `{ path?: string }` (defaults to cwd). When to call: the tier-1 inlay scan in step 1 of Task entry procedure. For deeper trees, descend one level at a time during step 3 recursion.
+- **MCP `read_context`** — Read the ancestor INLAY.md chain from a given path up to the filesystem root. Output is a string of `<inlay-context path="...">...</inlay-context>` blocks, top-down. INLAY.md already served in this session with the same hash appears with `(already read)` as the body (lifetime: MCP server process). Tool name: `mcp__inlay__read_context`. Args: `{ path?: string }` (defaults to cwd). When to call: when you want to peek at *another* inlay's context before editing (the prospective lookup in step 2 of Task entry procedure). The normal in-file flow is handled by automatic injection.
+- **Static script `doctor`** — Checks for broken frontmatter (4 fields: `name`/`purpose`/`entry`/`when`), empty `when` list, and body over 300 lines. On violation, prints a `<inlay-instruction>` block with the prescription. Run: `node $CLAUDE_PLUGIN_ROOT/scripts/context-doctor.mjs [<root>]`. Defaults to cwd. exit 0. When to call: right after creating or editing an INLAY.md, to verify it.
 
 ## Domain Terms
 
 - **Inlay** — A directory containing `INLAY.md`. The unit of exploration where the entry point and INLAY.md are read first.
+- **Tier-1 inlay** — A child of the root inlay reached by following branches to the first inlay encountered. *Tier-N inlay* is the first inlay reached by following branches from a tier-(N-1) inlay.
 - **Entry point** — An inlay's outward boundary file. Its path is recorded in the INLAY.md frontmatter `entry` field.
 - **Intent comment / `WHY:` comment** — A comment recording "why this was done."
-- **Rollback** — Reverting previously-changed code back to a problematic earlier state.
 
 </inlay>
