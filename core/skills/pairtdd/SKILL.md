@@ -23,13 +23,18 @@ argument-hint: "[수행할 task 설명]"
 
 ## Step 2: 워크트리 부트스트랩
 
-`scripts/bootstrap.sh <slug>` 를 실행한다. 성공 시 stdout 으로 워크트리 절대경로가 반환된다. 실패 메시지(env 미설정, git 저장소 아님, 스펙 파일 부재 등)를 사용자에게 전달하고 중단한다.
+`scripts/bootstrap.sh <slug>` 를 실행한다. 성공 시 stdout 으로 워크트리 절대경로가 반환된다. 실패 메시지(git 저장소 아님, 스펙 파일 부재 등)를 사용자에게 전달하고 중단한다.
 
 이어서 `git -C <worktree> rev-parse HEAD` 로 시작 커밋 SHA 를 얻는다.
 
-## Step 3: 팀 생성
+## Step 3: 멤버 스폰
 
-자연어로 다음을 수행한다: `Create a team in <worktree path> with two members: tdd-adversary and tdd-implementer.` 멤버는 `core/agents/tdd-adversary.md` 와 `core/agents/tdd-implementer.md` 의 정의를 그대로 사용한다.
+두 멤버를 named background subagent 로 동시에 띄운다:
+
+- `Agent({name: "tdd-adversary", subagent_type: "tdd-adversary", run_in_background: true, prompt: "워크트리는 <worktree path>. 다음 SendMessage 로 도착할 bootstrap 메시지까지 대기."})`
+- `Agent({name: "tdd-implementer", subagent_type: "tdd-implementer", run_in_background: true, prompt: "워크트리는 <worktree path>. 프로젝트의 언어·테스트 프레임워크를 스캔하고, adversary 의 SHA 가 SendMessage 로 도착할 때까지 대기."})`
+
+두 멤버는 `core/agents/tdd-adversary.md` 와 `core/agents/tdd-implementer.md` 의 정의를 그대로 사용한다.
 
 ## Step 4: 첫 신호 송신
 
@@ -41,12 +46,19 @@ bootstrap: spec=<abs spec path> worktree=<wt path> base-sha=<start sha> — prod
 
 abs spec path 는 메인 저장소의 `.agent-memory/tdd-spec/<slug>.md` 의 절대경로. base-sha 는 Step 2 의 시작 커밋 SHA.
 
-## Step 5: 라운드 대기
+## Step 5: 라운드 루프
 
-다음 신호 중 하나가 올 때까지 대기한다:
-- adversary 의 `converged: <reason>`
-- 멤버 어느 쪽의 `escalation: <issue>` 또는 `blocker: <issue>`
-- 사용자의 중단 신호
+leader 는 비진척 카운터(`no_progress_count`) 를 0 으로 시작. 각 turn 의 반환값을 받아 다음 멤버에게 SendMessage 로 라우팅한다:
+
+- adversary 반환:
+  - `<sha>: <case>` → `no_progress_count = 0`; `SendMessage(to: "tdd-implementer", message: "red-sha=<sha>")`
+  - `no-progress: <reason>` → `no_progress_count += 1`; `>= 2` 이면 Step 6 으로 (`converged: 2 consecutive no-progress`); 미만이면 `SendMessage(to: "tdd-adversary", message: "retry: try a new region or angle")`
+  - `escalation: <issue>` → 사용자에게 전달, 결정 대기
+- implementer 반환:
+  - `<sha>: <case>` → `SendMessage(to: "tdd-adversary", message: "last-impl-sha=<sha>")`
+  - `blocker: <issue>` → 사용자에게 전달, 결정 대기
+
+사용자 중단 신호가 오면 즉시 Step 6.
 
 ## Step 6: 종료 처리
 

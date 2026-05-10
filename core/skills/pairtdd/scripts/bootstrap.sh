@@ -24,11 +24,6 @@ case "$slug" in
     ;;
 esac
 
-if [ "${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}" != "1" ]; then
-  echo "error: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 required (export it and restart Claude Code)" >&2
-  exit 1
-fi
-
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
   echo "error: not inside a git repository" >&2
   exit 1
@@ -39,6 +34,15 @@ if [ ! -f "$spec_path" ]; then
   echo "error: spec file not found: $spec_path" >&2
   exit 1
 fi
+
+git -C "$repo_root" config user.email >/dev/null 2>&1 || {
+  echo "error: git user.email not set; configure git first (e.g., git config --global user.email '...')" >&2
+  exit 1
+}
+git -C "$repo_root" config user.name >/dev/null 2>&1 || {
+  echo "error: git user.name not set; configure git first (e.g., git config --global user.name '...')" >&2
+  exit 1
+}
 
 repo_name=$(basename "$repo_root")
 parent_dir=$(dirname "$repo_root")
