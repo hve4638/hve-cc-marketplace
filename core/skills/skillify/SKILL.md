@@ -7,112 +7,91 @@ argument-hint: "[optional: short description or slug of the skill to create]"
 <skillify_instruction>
 # skillify
 
-skillify is the skill-authoring rule set for this project. Both new skill creation and existing skill review use this rule set as the reference.
+Procedure for authoring a new skill following the [skillify-guide](../skillify-guide/SKILL.md) rules.
 
-For the authoring procedure (interview, slug decision, review, translation, report), see [SKILLIFY-WORKFLOW.md](./SKILLIFY-WORKFLOW.md).
-
----
-
-## Frontmatter
-
-| Scenario | `disable-model-invocation` |
-|---|---|
-| Guardrail (auto-trigger via description matching) | (omit) |
-| Manual invocation only (called via `/<slug>` only) | `true` |
-
-If the skill takes an argument, add `argument-hint: "[description]"`.
+The rules themselves (Frontmatter / Description / Body discipline) live in [skillify-guide](../skillify-guide/SKILL.md). This skill holds only the *authoring procedure*.
 
 ---
 
-## Description
+## Input modes
 
-The description satisfies all 7 principles below.
-
-1. `Imperative, addressed to a future Agent` — `"Use this skill when ..."`, `"Make sure to consult ..."`. The declarative form (`"This skill does X"`) is forbidden.
-2. `Intent` — written as the *task the Agent is about to perform*. Description of the skill's *contents* (`"contains rules about X"`) is forbidden.
-3. `Precision` — both under-trigger and over-trigger fail. Trigger categories must be exact.
-4. `WHY explicit` — what failure does this prevent. Pattern: `"Consult it to avoid {specific failure mode}"`.
-5. `Distinctive` — at least one of: tool name, command, or error message.
-6. `Length` — 100–200 words recommended; max 1024 chars; no `<` or `>`.
-7. `Generalize, don't overfit` — no specific queries enumerated; trigger categories only.
-
-### Strong prohibitions
-
-- Do not stack uppercase `MUST` / `ALWAYS` / `NEVER`.
-- Do not include safety-net clauses (`"even when user doesn't ask ..."`).
-- Do not embed behavioral rules in the description.
-
-### description vs body division
-
-- description = trigger matching entry point + WHY
-- body = behavior after invocation
-
-Do not include rules in the description.
-
-### Example
-
-❌ Description with rules embedded (body becomes meaningless):
-
-```
-"Use this skill when writing git rebase commands. The --no-edit flag is invalid for git rebase — omit it. Consult it to avoid an unknown switch error."
-```
-
-⭕ Trigger + WHY only (body carries the rule):
-
-```
-"Use this skill when writing or proposing `git rebase` commands. Consult it to avoid passing an invalid flag combination that aborts the rebase with an 'unknown switch' error."
-```
+- Argument or prior session context is sufficient → skip the interview, start from Step 2
+- Insufficient → Step 1 interview
 
 ---
 
-## Body
+## Step 1. Interview (if needed)
 
-### Instructions only
+Ask all 6 questions in a single bundle (no split):
 
-The body holds only *instructions* and *the targets of those instructions* (outputs, inputs, objects acted on). Do not include the following in the body:
+1. What does this skill do (one sentence)?
+2. When should it be invoked — trigger context?
+3. Invocation mode — explicit-only / auto-trigger / both?
+4. Which failure, inefficiency, or confusion does it prevent (WHY)?
+5. Storage location — project-local / global / plugin / common (`common/skills/`)?
+6. Is there an existing skill in a similar trigger category?
 
-- Meta about the skill itself (audience, prerequisites, importance)
-- Rationale appended after a `—` on a bullet
-- Adjacent-tool comparison tables
-- Noun-phrase items without an imperative verb
-
-Basic skeleton (guardrail type):
-
-```yaml
----
-name: <slug>
-description: "..."
 ---
 
-## Rule
-<what to do / what not to do>
+## Step 2. Name / slug decision
 
-## Not a violation
-<1–2 normal cases where this rule does not apply. Omit the section entirely if empty>
-```
+Agree with the user.
 
-Other types:
+- kebab-case, ≤30 characters, English
+- If a family exists, use a prefix (`reflect-*`, `rule-*`)
+- Good: `git-rebase-no-edit-flag`, `codex-mcp-guide`
+- Bad: `general-tips`, `mistakes`, `learning-20260430`
 
-- Workflow type (multi-step procedure): `### Step 1...N`
-- Meta type (skill of skills, e.g. skillify, reflect): combination of workflow + principles + boundaries
-- Reference type (knowledge storage): `## Category` / `## Items` — facts over rules
+---
 
-Add if needed:
-- `## Reason` — tradeoffs or environmental premise
-- `## Boundary` — distinction from adjacent skills (to avoid confusion)
+## Step 3. Write SKILL.ko.md
 
-### Separate deterministic from judgment
+Apply the §Frontmatter / §Description / §Body rules from [skillify-guide](../skillify-guide/SKILL.md) and save the Korean draft to `<location>/<slug>/SKILL.ko.md`.
 
-The body holds only *judgment-required parts*. *Deterministic* steps (computation, fixed transformation, set procedure) are separated:
+---
 
-- Code skills → extract into `scripts/<name>.{sh,mjs,py}` and have the body invoke them
-- Manual / document skills → extract into a fixed template like `assets/<name>.md` and have the body reference it
+## Step 4. Review
 
-### Body discipline
+Show the body to the user for confirmation. If changes are requested, update only SKILL.ko.md (the English version is not yet created).
 
-- Do not use `**bold**` on the leading word of a bullet.
-- Use bold sparingly, only on critical rules that change behavior.
-- When a behavioral prescription ("do not do X") can be reframed as a structural guardrail ("if X is done, declare it"), prefer the guardrail form.
+---
+
+## Step 5. English translation
+
+Once confirmed, fill `SKILL.md` with a bulk English translation.
+
+- The description is written in precise English for matching reliability.
+- The body preserves the Korean meaning verbatim (no compression, no rewording).
+
+---
+
+## Step 6. Report
+
+Report the slug, location, and a one-line description summary to the user.
+
+---
+
+## Empty case
+
+If a skill in the same trigger category already exists, recommend adding rules to the existing skill rather than creating a new one (confirmed in Step 1 question 6).
+
+---
+
+## Heavy case
+
+Recommend invoking the plugin `skill-creator` if the skill matches:
+
+- Multiple outputs + variability (output form changes substantially with input)
+- Evaluation automation needed (eval/benchmark)
+- Deeply coupled with external tools or environments
+
+---
+
+## Invocation routing
+
+- If the user wants *retrospection / crystallization of past mistakes*, route to reflect (not this skill).
+- If the user wants *a heavy workflow with eval/benchmark*, route to the plugin `skill-creator`.
+- Otherwise, handle new skill creation in this skill.
 
 </skillify_instruction>
 

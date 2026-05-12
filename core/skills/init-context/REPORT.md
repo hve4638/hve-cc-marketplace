@@ -325,7 +325,7 @@ frame agents (19): explore (haiku), analyst (opus), planner (opus), ...
 
 <skills>
 - "reflect" / 회고 → common:reflect
-- "skillify" / 스킬 만들기 → common:skillify
+- "skillify-guide" / 스킬 만들기 → common:skillify-guide
 ...
 </skills>
 
