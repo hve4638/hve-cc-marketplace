@@ -1,41 +1,55 @@
 ---
 name: reflect
 disable-model-invocation: true
-argument-hint: "[선택사항: 회고 주제 슬러그 힌트]"
+argument-hint: "[선택사항: 회고 주제 슬러그 또는 섹션 제목 힌트]"
 ---
 
 <reflect_instruction>
 # reflect
 
-세션에서 사용자가 정정한 것과 사실 오류를 추출해, 각 항목을 자식 가드레일 스킬 (`reflect-<slug>/SKILL.md`) 로 만든다. 다음 세션에서 description 매칭으로 자동 트리거되어 같은 실수를 막는다.
+세션에서 사용자가 정정한 것과 사실 오류를 추출해, 각 항목을 적절한 저장처 (스킬 또는 CLAUDE.md) 에 추가한다. 다음 세션에서 같은 실수를 막는다.
 
-전제: description-matching auto-trigger 가 있는 런타임 (Claude Code, Codex CLI 등). 없는 환경에서는 자식이 단순 문서로만 남는다.
+전제: description-matching auto-trigger 가 있는 런타임 (Claude Code, Codex CLI 등) — 자식 스킬 `reflect-*` 자동 발동의 전제. 없는 환경에서는 자식 스킬은 단순 문서로 남고, CLAUDE.md 저장분은 그대로 적재된다.
 
-## reflect 와 자식 분리
+## reflect 와 산출물
 
-- reflect: 명시 호출 (`disable-model-invocation: true`). 회고 사고를 수행.
-- reflect-* 자식: 자동 트리거 후보. 미래 행동 지시문만 담는다 (회고 서술 금지).
-
-회고 4슬롯 (Step 1) 은 reflect 의 내부 사고 도구. **자식 출력에 박지 않는다**.
+- reflect: 명시 호출 (`disable-model-invocation: true`). 회고 사고 + 저장처 판정 + 작성.
+- 산출물 두 종류:
+  - 스킬 `reflect-<slug>/SKILL.md` — 자동 트리거 후보. 미래 행동 지시문만 담는다 (회고 서술 금지).
+  - CLAUDE.md 의 `<reflection>...</reflection>` 영역 — 항상 컨텍스트 로드. `## 섹션` 누적.
 
 ---
 
-## 저장 규격
+## 저장처 4셀
 
-- 경로: `.claude/skills/reflect-<slug>/SKILL.md` (프로젝트 로컬 강제, 사용자 글로벌 금지)
-- 자식 prefix: `reflect-`
-- 자식 언어: 영문 단일 (자식에 `SKILL.ko.md` 만들지 않음)
-- 슬러그: kebab-case, 30자 이내, 영문, 트리거 맥락을 가장 좁게
+축 1 (형식) — 어떤 시점에 발동되어야 효과적인가?
+- 특정 도구·명령 호출 시점 → 스킬 (description 매칭으로 그 시점에 자동 발동)
+- 작업 전반·매 세션 시작 → CLAUDE.md (항상 컨텍스트 로드)
+
+축 2 (범위) — 어디까지 퍼지길 원하는가?
+- 모든 프로젝트 → 글로벌
+- 이 프로젝트만 → 프로젝트
+
+| 셀 | 경로 | 확인 |
+|---|---|---|
+| 글로벌 스킬 | `~/.claude/skills/reflect-<slug>/SKILL.md` | 사용자 확인 |
+| 프로젝트 스킬 | `.claude/skills/reflect-<slug>/SKILL.md` | 자동 |
+| 글로벌 CLAUDE.md | `~/.claude/CLAUDE.md` | 사용자 확인 |
+| 프로젝트 CLAUDE.md | `./CLAUDE.md` | 자동 |
+
+사용자 확인 시점 (3가지):
+
+1. 셀 선택 — 글로벌 셀로 판정된 항목은 판정 결과 (셀 + 위치) 를 제시하고 확인. 거부 시 셀 변경 또는 skip.
+2. 병합 판정 — 글로벌 셀의 새 항목이 기존 룰과 병합 후보면 합친 한 줄 제시. 병합 / 분리 / skip 중 질의.
+3. 덮어쓰기 (셀 무관) — 정확히 같은 슬러그의 스킬이 이미 있으면 확인 (자동 덮어쓰기 금지).
+
+프로젝트 셀은 1·2 가 자동, 3은 셀 무관 사용자 확인.
 
 ---
 
 ## 자기 탐색 원칙
 
 회고 항목 추출 (Step 1) 은 세션 컨텍스트만 근거로 한다. git, grep, web, 파일 재읽기 금지. 외부 정보가 필요한 항목은 회고 대상에서 제외 (추측·재해석 차단 목적).
-
-이후 단계의 카탈로그 / 기존 자식 SKILL.md 읽기·쓰기는 기록 관리 동작이므로 본 원칙 대상 아님.
-
----
 
 ## 회고 카테고리
 
@@ -57,8 +71,6 @@ argument-hint: "[선택사항: 회고 주제 슬러그 힌트]"
 - 도구·API·모델의 옛 동작을 가정했다가 실제 출력과 어긋난 것
 - 1번이 우선. 사용자 지적이 곧 사실 오류면 1번에만 (중복 회피)
 
----
-
 ## 워크플로우
 
 ### Step 1. 회고 항목 추출
@@ -70,23 +82,40 @@ argument-hint: "[선택사항: 회고 주제 슬러그 힌트]"
 3. `Correct form` — 무엇이 옳은가
 4. `Generalization` — 같은 실수가 재현될 만한 이웃 상황
 
-### Step 2. 슬러그 결정
+### Step 2. 저장처 판정
 
-각 항목의 트리거 맥락을 가장 좁게 표현하는 영문 슬러그를 자동 선정.
+각 항목을 4셀 중 하나에 할당:
 
-- 좋음: `git-rebase-no-edit-flag`, `bash-find-regex-order`, `tsx-jsx-key-prop`
-- 나쁨: `general-tips`, `mistakes`, `learning-20260430`
+1. `Generalization` 의 발동 시점이 특정 도구·명령 호출 시점으로 좁혀지나? → 스킬. 작업 전반·매 세션이면 → CLAUDE.md.
+2. 다른 프로젝트에도 그대로 적용되길 원하나? → 글로벌. 이 프로젝트만? → 프로젝트.
 
-### Step 3. 병합 판정
+글로벌 셀이면 사용자 확인. 프로젝트 셀이면 자동 진행.
 
-새 항목과 카탈로그의 기존 자식이 같은 가드레일로 묶이는지 검사한다.
+### Step 3. 이름 결정
 
-판정 기준: 두 항목의 `Correct form` 이 한 줄에 정확히 들어가는가.
+- 스킬 셀: 영문 kebab-case 슬러그, 30자 이내, 트리거 맥락을 가장 좁게.
+  - 좋음: `git-rebase-no-edit-flag`, `bash-find-regex-order`, `tsx-jsx-key-prop`
+  - 나쁨: `general-tips`, `mistakes`, `learning-20260430`
+- CLAUDE.md 셀: 간결한 명사구 (한국어 가능). `## 메커니즘 단언 전 검증` 형식.
 
-- 한 줄에 둘 다 정확히 들어감 → 병합 후보
+### Step 4. 병합 판정
+
+새 항목과 같은 저장처의 기존 룰이 같은 가드레일로 묶이는지 검사.
+
+판정 기준: 두 `Correct form` 을 한 줄로 합쳤을 때 어느 쪽 정답도 빠지지 않고 의미 손실이 없는가.
+
+- 의미 손실 없이 합쳐짐 → 병합 후보
 - 합치면 어느 쪽 정답이 흐려짐 → 분리
 
-병합 후보면 합친 한 줄을 사용자에게 제시하고 병합 / 분리 / skip 중 하나를 질의한다. 정확히 같은 슬러그가 이미 있으면 무조건 사용자 확인 (자동 덮어쓰기 금지).
+병합 후보 처리:
+
+- 글로벌 셀 → 합친 한 줄을 사용자에게 제시하고 병합 / 분리 / skip 중 질의.
+- 프로젝트 셀 → 자동 병합.
+
+덮어쓰기 안전장치 (셀 무관):
+
+- 스킬: 정확히 같은 슬러그가 이미 있으면 사용자 확인 (자동 덮어쓰기 금지).
+- CLAUDE.md: `<reflection>` 안에 같은 디시플린의 `## 섹션` 있으면 갱신 (Step 5 의 섹션 구간 교체 룰 따름).
 
 #### 판정 예
 
@@ -95,11 +124,13 @@ argument-hint: "[선택사항: 회고 주제 슬러그 힌트]"
 | `git rebase` 의 유효 플래그인지 확인 | `git rebase` 의 유효 플래그인지 확인 | rebase 옵션은 유효 플래그인지 확인 후 사용 | 병합 |
 | `'foo' in d` 사용 | `np.float64` 사용 | deprecated 면 대안 사용 | 분리 (한 줄이 두 정답을 못 담음) |
 
-### Step 4. 자식 SKILL.md 작성
+### Step 5. 작성
 
-회고 슬롯 중 `Correct form` 과 `Generalization` 만 자식으로 넘긴다. description 의 WHY 는 `Past action` / `Signal` 에서 실패 유형을 추상화해 작성한다.
+회고 슬롯 중 `Correct form` 과 `Generalization` 만 저장처로 넘긴다. session 에서 실제로 마주친 항목·메커니즘만 담는다 — session 밖 일반 지식 도입 금지. 메커니즘 추상화 (e.g., "호출 전 실제 존재 여부 확인") 는 session 사례의 일반화이므로 허용.
 
-골격:
+#### 스킬 셀
+
+`reflect-<slug>/SKILL.md` 작성. 골격:
 
 ```yaml
 ---
@@ -114,87 +145,51 @@ description: "<트리거 + WHY. 룰은 박지 않음>"
 <이 룰이 적용되지 않는 정상 케이스 1~2개. 비우면 통째 생략>
 ```
 
-#### description 작성 규칙
+description 작성 시 `skillify-guide` 스킬을 호출해 §Description 규칙을 적용한다. description 의 WHY 절은 `Past action` / `Signal` 슬롯에서 실패 유형을 추상화해 작성한다. WHY 절은 *회고 사실* (세션 중 일어난 일) 이 아니라 *실패 유형의 트리거 조건* (다시 마주칠 맥락) 으로만 쓴다.
 
-- 명령형으로 쓴다 (`Use this skill when ...`, `Consult this skill to ...`). 평서문 (`This skill does X`) 금지.
-- Agent 가 하려는 작업 (intent) 을 서술한다. 스킬 내용 (구현) 을 서술하지 않는다.
-- 트리거 카테고리를 명시한다: `"... when the task involves {trigger A}, {trigger B}, or {trigger C}"`.
-- WHY 절을 박는다: `"Consult it to avoid {invalid flag, unknown switch error, ...}"`. 회고 슬롯의 `Past action` / `Signal` 에서 추출.
-- 도구명·명령어·에러 메시지 중 최소 하나 포함 (다른 스킬과의 구별).
-- 100~200 words 권장, 1024 chars 이하. `<` `>` 사용 금지.
-- 구체 쿼리를 길게 늘어놓지 않는다. 트리거 카테고리만.
+#### CLAUDE.md 셀
 
-#### description 에 쓰지 않는 것
+대상 파일 (글로벌 `~/.claude/CLAUDE.md` 또는 프로젝트 `./CLAUDE.md`) 의 `<reflection>...</reflection>` 안에 `## 섹션` 형식으로 추가.
 
-- 대문자 `MUST` / `ALWAYS` / `NEVER` 누적 (노이즈)
-- safety-net 절 (`"even when the user doesn't explicitly ask ..."`) — over-trigger 유발
-- 행동 룰 자체 — body 의 존재 의미 상실
+- 파일에 `<reflection>` 없음 → 파일 끝에 새 블록 추가. 블록은 안내 문구 1줄 + 빈 줄 + 첫 `## 섹션` 으로 시작.
+- 이미 있음 → 블록 안 마지막 `## 섹션` 뒤에 새 `## 섹션` 삽입.
+- 같은 디시플린의 기존 `## 섹션` 있으면 그 *섹션 구간* 을 교체.
 
-#### body 작성 규칙
+구간 정의:
 
-session 에서 실제로 마주친 항목·메커니즘만 담는다. session 밖 일반 지식 (마주치지 않은 다른 deprecated 항목, 다른 잘못된 플래그 등) 도입 금지 — 짐작이 아닌 검증된 정정만 담는다.
+- 보존 구간 — `<reflection>` 시작 태그 다음 줄부터 첫 `## ` 직전 줄까지 전부. reflect 는 이 구간을 손대지 않는다 (안내 문구·사용자 주석·공백 모두 포함).
+- 섹션 구간 — 해당 `## <제목>` 부터 다음 `## ` 직전 줄까지 (마지막 섹션이면 `</reflection>` 직전 줄까지). 갱신 시 이 구간 전체를 새 본문으로 교체.
 
-메커니즘 추상화 (e.g., "호출 전 실제 존재 여부 확인") 는 session 사례의 일반화이므로 허용.
+본문 형식 (최초 생성 시):
 
-#### 예
+```markdown
+<reflection>
+이 태그 내 목록은 실수할 가능성이 높거나, 사용자의 방향성과 맞지 않는 부분을 기록한 것으로 관련 작업 시 강하게 참고하여야 한다.
 
-❌ description 에 룰까지 박은 경우 (body 무의미):
+## <섹션 제목>
 
-```
-"Use this skill when writing git rebase commands. The --no-edit flag is invalid for git rebase — omit it. Consult it to avoid an unknown switch error."
+<디시플린 본문 — 한 단락 또는 짧은 불릿>
+</reflection>
 ```
 
-⭕ trigger + WHY 만 (body 가 룰을 담음):
-
-```
-"Use this skill when writing or proposing `git rebase` commands. Consult it to avoid passing an invalid flag combination that aborts the rebase with an 'unknown switch' error."
-```
-
-후자에서 "어떤 플래그가 invalid 인가" 는 body 의 Rule 섹션이 담는다.
-
-### Step 5. 카탈로그 갱신
-
-이 `SKILL.md` 본문 하단의 카탈로그 테이블에 행 추가 (병합이면 기존 행의 `Last updated` 갱신). 카탈로그는 인덱스만 — 룰 자체는 자식 SKILL.md 가 single source.
+이후 추가 시 보존 구간은 손대지 않고, 마지막 `## 섹션` 뒤에 새 섹션만 붙인다.
 
 ### Step 6. 보고 후 종료
 
 사용자에게 짧게 보고하고 종료한다. 추가 회고를 제안하지 않는다.
 
-- 항목 N개 → 자식 스킬 N개 (병합 M개, 신규 K개, skip L개)
-- 각 자식의 슬러그와 description 한 줄
-
----
+- 항목 N개 → 산출물 N개 (스킬 K개, CLAUDE.md 섹션 M개, 병합 P개, skip L개)
+- 각 산출물의 위치와 한 줄 요약
 
 ## 빈 회고 처리
 
-지적도 사실 오류도 없으면 자식 스킬을 만들지 않고 그 사실을 한 줄로 보고한다. 형식 채우기만의 회고는 시스템 노이즈가 된다.
+지적도 사실 오류도 없으면 어떤 저장도 하지 않고 그 사실을 한 줄로 보고한다. 형식 채우기만의 회고는 시스템 노이즈가 된다.
 
----
+## 주의 사항
 
-## 경계
+- CLAUDE.md 의 `<reflection>...</reflection>` 영역만 갱신한다. 사용자가 직접 작성한 외부 영역은 손대지 않는다.
+- 자식 스킬 (`reflect-*`) 은 description 매칭 자동 트리거 대상이므로 frontmatter 에 `disable-model-invocation` 을 넣지 않는다.
 
-- handoff (세션 작업 맥락 인계) 와 다르다 — reflect 는 handoff 로 보내지 않는다.
-- MEMORY.md (사람·프로젝트 영구 지식) 와 다르다 — reflect 는 MEMORY.md 를 수정하지 않는다.
-- manage-skills 류 (검증 스킬·메타 문서 관리) 와 다르다 — reflect 는 메타 문서 (CLAUDE.md 등) 를 손대지 않고 가드레일 자식 스킬만 만든다.
-
-자식 (`reflect-*`) 은 description 매칭 자동 트리거 대상이므로 frontmatter 에 `disable-model-invocation` 을 박지 않는다.
-
----
-
-## 카탈로그
-
-reflect 가 생성한 자식 스킬 인덱스. Step 5 에서 자가 갱신. 룰 자체는 자식 SKILL.md 가 single source — 카탈로그는 빠른 룩업용 인덱스만.
-
-`Scope key` = 자식이 트리거되는 도구·명령·API 이름.
-
-| Slug | Scope key | Last updated |
-|------|-----------|--------------|
-
-(아직 생성된 reflect-* 가 없습니다)
-
-<!-- 자식이 추가되면 위 테이블에 행 추가:
-| `reflect-git-rebase-flag-validation` | `git rebase` flags | 2026-04-30 |
--->
 </reflect_instruction>
 
 $ARGUMENTS
