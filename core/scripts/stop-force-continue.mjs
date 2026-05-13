@@ -17,6 +17,10 @@
  *   recent_in_5min >= SOFT_LIMIT    → block with extended alert; append state
  *   otherwise                       → block with base alert; append state
  *
+ * Abnormal stop is detected when (a) the last substantive entry is an assistant
+ * with stop_reason=tool_use, or (b) the last is a user tool_result paired with
+ * a prior assistant stop_reason=tool_use (harness stopped after running tool).
+ *
  * Any pass that is not "no state op" (re-entry, missing session, missing
  * transcript) clears the state file. Atomic writes via tmp+rename.
  *
@@ -113,17 +117,18 @@ function tailLines(path, n) {
   }
 }
 
-function findLastSubstantiveEntry(tailString) {
+function findLastSubstantiveEntries(tailString, n) {
   const lines = tailString.split('\n');
-  for (let i = lines.length - 1; i >= 0; i--) {
+  const out = [];
+  for (let i = lines.length - 1; i >= 0 && out.length < n; i--) {
     const line = lines[i];
     if (!line) continue;
     let entry;
     try { entry = JSON.parse(line); } catch { continue; }
     if (!entry?.type || NOISE_TYPES.has(entry.type)) continue;
-    if (entry.type === 'user' || entry.type === 'assistant') return entry;
+    if (entry.type === 'user' || entry.type === 'assistant') out.push(entry);
   }
-  return null;
+  return out;
 }
 
 function saveDebugTail(projectRoot, tailContent) {
@@ -173,9 +178,20 @@ async function main() {
   const tailContent = tailLines(transcriptPath, tailN);
   saveDebugTail(projectRoot, tailContent);
 
-  const entry = findLastSubstantiveEntry(tailContent);
-  const isAbnormal =
-    entry?.type === 'assistant' && entry.message?.stop_reason === 'tool_use';
+  const [last, prev] = findLastSubstantiveEntries(tailContent, 2);
+
+  const lastIsAssistantToolUse =
+    last?.type === 'assistant' && last.message?.stop_reason === 'tool_use';
+
+  // WHY: harness ran tool then stopped; tool_result is last, assistant tool_use prior.
+  const isToolResultPair =
+    last?.type === 'user' &&
+    Array.isArray(last.message?.content) &&
+    last.message.content.some(c => c?.type === 'tool_result') &&
+    prev?.type === 'assistant' &&
+    prev.message?.stop_reason === 'tool_use';
+
+  const isAbnormal = lastIsAssistantToolUse || isToolResultPair;
 
   const statePath = statePathFor(projectRoot, data.session_id);
 
