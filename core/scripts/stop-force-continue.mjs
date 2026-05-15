@@ -19,7 +19,8 @@
  *
  * Abnormal stop is detected when (a) the last substantive entry is an assistant
  * with stop_reason=tool_use, or (b) the last is a user tool_result paired with
- * a prior assistant stop_reason=tool_use (harness stopped after running tool).
+ * a prior assistant stop_reason=tool_use AND its timestamp is fresh
+ * (< TOOL_RESULT_RACE_GUARD_MS old) to avoid stale-tail false positives.
  *
  * Any pass that is not "no state op" (re-entry, missing session, missing
  * transcript) clears the state file. Atomic writes via tmp+rename.
@@ -41,6 +42,7 @@ const STATE_SUBDIR = '.agent-memory/unexpected-stop';
 const SOFT_LIMIT = 5;
 const SOFT_WINDOW_MS = 5 * 60 * 1000;
 const HARD_LIMIT = 10;
+const TOOL_RESULT_RACE_GUARD_MS = 100;
 
 const STOP_DEBUG_SUBDIR = '.agent-memory/stop';
 const STOP_DEBUG_MAX = 50;
@@ -183,13 +185,21 @@ async function main() {
   const lastIsAssistantToolUse =
     last?.type === 'assistant' && last.message?.stop_reason === 'tool_use';
 
+  // WHY: tail can race the JSONL writer — a fresh end_turn chunk may not be
+  //      flushed yet when we read. Only treat tool_result pairs as abnormal
+  //      when the timestamp is recent; older pairs almost certainly have a
+  //      continuation we just haven't seen.
+  const lastTs = Date.parse(last?.timestamp ?? '');
+  const gap = Number.isFinite(lastTs) ? Date.now() - lastTs : 0;
+
   // WHY: harness ran tool then stopped; tool_result is last, assistant tool_use prior.
   const isToolResultPair =
     last?.type === 'user' &&
     Array.isArray(last.message?.content) &&
     last.message.content.some(c => c?.type === 'tool_result') &&
     prev?.type === 'assistant' &&
-    prev.message?.stop_reason === 'tool_use';
+    prev.message?.stop_reason === 'tool_use' &&
+    gap < TOOL_RESULT_RACE_GUARD_MS;
 
   const isAbnormal = lastIsAssistantToolUse || isToolResultPair;
 
