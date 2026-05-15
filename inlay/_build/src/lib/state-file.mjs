@@ -60,6 +60,11 @@ export function loadCache({ projectRoot, sessionId, agentId }) {
   };
 }
 
+export function loadOwnCache({ projectRoot, sessionId, agentId }) {
+  // WHY: SubagentStop 은 자기 own 파일만 본다. base/타 subagent 변경은 메인 Stop 책임.
+  return readJsonOrEmpty(ownFile(projectRoot, sessionId, agentId));
+}
+
 export function loadCacheForStop({ projectRoot, sessionId }) {
   // WHY: Stop 훅은 메인 컨텍스트에서만 발화하지만 서브에이전트가 만진
   //      inlay 도 함께 검사해야 미갱신 누락이 없다. 같은 session_id 의 own
