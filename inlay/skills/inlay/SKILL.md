@@ -95,21 +95,37 @@ Inside one inlay, use one name per concept. When the external API and internal r
 
 ## WHY comment rules
 
-Form: `// WHY: reason` (use the language's comment marker — `#`, `/* */`, etc.). For multi-line, tag only the first line; indent continuation lines.
+Form: `// WHY: reason`. Use the language's comment marker (`#`, `/* */`, etc.). For multi-line, tag only the first line and indent continuation lines.
 
 ```ts
 // WHY: This updates shared state, so parallelizing it would cause a race condition.
 //      Sequential execution must be preserved.
 ```
 
-Attach `// WHY:` whenever any of the following applies:
+Before writing a WHY comment, first complete this sentence:
 
-1. **A simpler-looking approach was deliberately rejected.**
-2. **A choice that runs counter to intuition.**
-3. **A workaround for a past bug or issue, or for a bug or constraint in an external system.**
-4. **A choice driven by performance, security, or compatibility constraints.**
+> "From the code alone, the reader would not know ___."
 
-Test: *"Without this comment, would an agent seeing this code for the first time think 'I could simplify this' and roll it back?"*
+If you can fill the blank with **one concrete fact** → that fact is the WHY body.
+If you cannot fill it, or only abstract phrases come up ("for safety", "to prevent X", etc.) → **do not write the comment.**
+
+Common shapes the blank takes:
+
+1. External system / library behaves like ___
+2. There was a past bug or incident: ___
+3. A simpler alternative ___ exists but was rejected because ___
+4. Invariant ___ holds (or breaks) at ___
+5. Looks like A but is actually B
+6. Performance / security / compatibility forced the constraint ___
+
+Even if none of these shapes fit, a concrete blank is still a WHY. Even if one of them seems to fit, an abstract blank is WHAT.
+
+**Signs the blank is not filled**:
+
+- "For safety..." → what is safe is missing
+- "Skip if X" → paraphrases the condition
+- "To prevent X" → direct translation of the branch
+- "Record Y", "Call Y" → direct translation of the function call
 
 When editing or removing a `WHY:` line, first **verify the comment's condition still holds**. If it no longer holds, update both the comment and the code. Never change the code while leaving the comment.
 
